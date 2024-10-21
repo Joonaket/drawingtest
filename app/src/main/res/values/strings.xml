@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">DrawingBoard</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="dialog_new_info">You sure you want to clear away this masterpiece?\nThis can\'t be undone, proceed?</string>
+    <string name="dialog_confirm">Toss it</string>
+    <string name="dialog_decline">Wait no</string>
+</resources>
