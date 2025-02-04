@@ -34,6 +34,8 @@ public class ButtonFragment extends Fragment {
 
         Button newButton = view.findViewById(R.id.newButton);
 
+        Button printButton = view.findViewById(R.id.printButton);
+
 
         saveButton.setOnClickListener(e ->{
            saveDrawing();
@@ -42,6 +44,10 @@ public class ButtonFragment extends Fragment {
 
         newButton.setOnClickListener(e ->{
             newDialog(this.getView());
+        });
+
+        printButton.setOnClickListener(e ->{
+            printDrawing();
         });
     }
 
@@ -59,6 +65,17 @@ public class ButtonFragment extends Fragment {
     private void saveDrawing() {
         if(drawingBoard !=null){
             drawingBoard.saveBitmap(requireContext());
+        }
+        else{
+            Toast.makeText(requireContext(),"No drawing board found",Toast.LENGTH_SHORT).show();
+        }
+
+    }
+
+    private void printDrawing(){
+
+        if(drawingBoard !=null){
+            drawingBoard.printScreen();
         }
         else{
             Toast.makeText(requireContext(),"No drawing board found",Toast.LENGTH_SHORT).show();

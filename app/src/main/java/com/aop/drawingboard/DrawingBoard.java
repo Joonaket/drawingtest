@@ -1,8 +1,9 @@
 package com.aop.drawingboard;
 
-import android.content.ContentResolver;
-import android.content.ContentValues;
+
+
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -10,6 +11,14 @@ import android.graphics.Paint;
 import android.graphics.Path;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Bundle;
+import android.os.CancellationSignal;
+import android.os.ParcelFileDescriptor;
+import android.print.PageRange;
+import android.print.PrintAttributes;
+import android.print.PrintDocumentAdapter;
+import android.print.PrintDocumentInfo;
+import android.print.PrintManager;
 import android.provider.MediaStore;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
@@ -17,6 +26,7 @@ import android.view.View;
 import android.widget.Toast;
 
 
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.text.SimpleDateFormat;
@@ -24,10 +34,14 @@ import java.util.Date;
 import java.util.LinkedList;
 import java.util.Locale;
 
+import androidx.activity.result.ActivityResultLauncher;
 import androidx.annotation.Nullable;
 
 
 public class DrawingBoard extends View {
+    private static final int CREATE_FILE_REQUEST_CODE = 1;
+    private ActivityResultLauncher<Intent> saveFileLauncher;
+    private Bitmap currentBitmap;
     private LinkedList<PaintedPath> Paths = new LinkedList<PaintedPath>();
 
     private PaintedPath activePath;
@@ -139,43 +153,64 @@ public class DrawingBoard extends View {
     }
 
     public void saveBitmap(Context context) {
-        Bitmap bitmap = getBitMapFromCanvas();
+        currentBitmap = getBitMapFromCanvas();
+
         String fileName = "Drawing_" + new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date()) + ".png";
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("image/png");
+        intent.putExtra(Intent.EXTRA_TITLE, fileName);
+        saveFileLauncher.launch(intent);
+    }
 
-        ContentValues values = new ContentValues();
-        values.put(MediaStore.Images.Media.DISPLAY_NAME, fileName);
-        values.put(MediaStore.Images.Media.MIME_TYPE, "image/png");
-        values.put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/DrawingApp");
+    public void setSaveFileLauncher(ActivityResultLauncher<Intent> launcher){
+        this.saveFileLauncher = launcher;
+    }
 
-        ContentResolver resolver = context.getContentResolver();
-        Uri imageUri = null;
+    public void printScreen(){
 
-        try {
-            imageUri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
-            if (imageUri != null) {
-                try (OutputStream out = resolver.openOutputStream(imageUri)) {
-                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, out);
+        PrintManager manager = (PrintManager) getContext().getSystemService(Context.PRINT_SERVICE);
 
+        Bitmap bits = getBitMapFromCanvas();
+
+        String jobName = getContext().getString(R.string.app_name) + "Drawing" ;
+
+
+        PrintDocumentAdapter printAdapter = new PrintDocumentAdapter() {
+            @Override
+            public void onLayout(PrintAttributes oldAttributes, PrintAttributes newAttributes, CancellationSignal cancellationSignal, LayoutResultCallback callback, Bundle extras) {
+                int pageHeight = newAttributes.getMediaSize().getHeightMils() /1000;
+                int pageWidth = newAttributes.getMediaSize().getWidthMils()/1000;
+                int bitmapWidth = bits.getWidth();
+                int bitmapHeight = bits.getHeight();
+
+                float scaleWidth = (float) pageWidth/(float) bitmapWidth;
+                float scaleHeight =(float) pageWidth/(float) bitmapHeight;
+                float scale = Math.min(scaleWidth,scaleHeight);
+
+                PrintDocumentInfo.Builder builderBob = new PrintDocumentInfo.Builder(jobName).setContentType(PrintDocumentInfo.CONTENT_TYPE_DOCUMENT).setPageCount(1);
+
+                PrintDocumentInfo documentInfo = builderBob.build();
+                callback.onLayoutFinished(documentInfo,true);
+
+            }
+
+            @Override
+            public void onWrite(PageRange[] pages, ParcelFileDescriptor destination, CancellationSignal cancellationSignal, WriteResultCallback callback) {
+
+                try(OutputStream out = new FileOutputStream(destination.getFileDescriptor())){
+                    bits.compress(Bitmap.CompressFormat.PNG,100,out);
+                } catch(IOException e){
+                    e.printStackTrace();
+                } finally {
+                    callback.onWriteFinished(new PageRange[]{PageRange.ALL_PAGES});
                 }
-                Toast.makeText(context, "File has been successfully hidden behind a stack of other files", Toast.LENGTH_SHORT).show();
+
             }
-            if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q){
-                values.clear();
-                values.put(MediaStore.Images.Media.IS_PENDING,0);
-                resolver.update(imageUri,values,null,null);
-                Toast.makeText(context, "Believe it or not, saved", Toast.LENGTH_SHORT).show();
-            }
+        };
+        manager.print(jobName,printAdapter,null);
 
-
-
-
-        } catch (IOException e) {
-            if (imageUri != null) {
-                resolver.delete(imageUri, null, null);
-            }
-            Toast.makeText(context, "Something went wrong...somewhere (Saving error)", Toast.LENGTH_SHORT).show();
-            e.printStackTrace();
-        }
+        //Toast.makeText(this.getContext(),"Placeholder proof of printing completion",Toast.LENGTH_SHORT).show();
     }
 }
 

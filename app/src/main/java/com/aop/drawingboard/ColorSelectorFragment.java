@@ -47,16 +47,17 @@ public class ColorSelectorFragment extends Fragment {
             Paint p = paints[i];
             Button B = new Button(getContext());
             B.setBackgroundColor(p.getColor());
+            B.setTag(p.getColor());
+
+
             B.setMinimumHeight(100);
             B.setMinimumWidth(100);
             B.setTag(i);
             B.setTextSize(28f);
             B.setOnClickListener(view -> {
                 SelectPaint((int)view.getTag());
+                updateButtonColor(B,p.getColor());
             });
-
-            double contrast = ColorUtils.calculateContrast(p.getColor(), Color.BLACK);
-            if(contrast < 5f) B.setTextColor(Color.WHITE);
 
             paintContainer.addView(B);
         }
@@ -70,7 +71,27 @@ public class ColorSelectorFragment extends Fragment {
 
         for(int i = 0; i< paintContainer.getChildCount(); i++){
             Button b = (Button)paintContainer.getChildAt(i);
+
             b.setText(i == paintNumber ? "✓":"");
+            updateButtonColor(b,(int)b.getTag());
+            b.invalidate();
+        }
+    }
+
+    private void updateButtonColor(Button button, int backgroundColor) {
+
+        int red = Color.red(backgroundColor);
+        int green = Color.green(backgroundColor);
+        int blue = Color.blue(backgroundColor);
+
+
+        double luminance = (0.2126 * red + 0.7152 * green + 0.0722 * blue) / 255;
+
+
+        if (luminance > 0.5) {
+            button.setTextColor(Color.BLACK);
+        } else {
+            button.setTextColor(Color.WHITE);
         }
     }
 }
